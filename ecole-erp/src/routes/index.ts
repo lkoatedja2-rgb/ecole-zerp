@@ -20,24 +20,18 @@ import { creneauxRouter } from "@/modules/edt/creneaux/creneaux.routes";
 export const apiRouter = Router();
 
 apiRouter.use("/auth", authRouter);
-
 apiRouter.use("/etablissements", etablissementsRouter);
 apiRouter.use("/annees-scolaires", anneesScolairesRouter);
 apiRouter.use("/classes", classesRouter);
 apiRouter.use("/eleves", elevesRouter);
 apiRouter.use("/inscriptions", inscriptionsRouter);
-
 apiRouter.use("/absences", absencesRouter);
-
 apiRouter.use("/matieres", matieresRouter);
 apiRouter.use("/cours", coursRouter);
 apiRouter.use("/notes", notesRouter);
-
 apiRouter.use("/personnel", personnelRouter);
 apiRouter.use("/contrats", contratsRouter);
 apiRouter.use("/bulletins-paie", bulletinsPaieRouter);
-
 apiRouter.use("/factures", facturesRouter);
-
 apiRouter.use("/salles", sallesRouter);
 apiRouter.use("/creneaux-edt", creneauxRouter);
