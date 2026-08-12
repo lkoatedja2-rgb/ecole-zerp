@@ -1,0 +1,2 @@
+Module à implémenter en suivant le pattern schemas/service/controller/routes.
+Le modèle Sanction existe déjà dans prisma/schema.prisma.

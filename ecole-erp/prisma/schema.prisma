@@ -1,0 +1,390 @@
+// ============================================================================
+// Schéma Prisma - Logiciel de gestion d'établissement scolaire
+// Reprend fidèlement le modèle de données (modele-donnees_mermaid.txt)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  DIRECTION
+  ENSEIGNANT
+  VIE_SCOLAIRE
+  RH
+  COMPTABILITE
+  ELEVE
+  RESPONSABLE
+}
+
+enum StatutInscription {
+  EN_COURS
+  VALIDEE
+  ANNULEE
+  TRANSFEREE
+}
+
+enum StatutBulletinPaie {
+  BROUILLON
+  VALIDE
+  PAYE
+}
+
+enum StatutFacture {
+  BROUILLON
+  EMISE
+  PARTIELLEMENT_PAYEE
+  PAYEE
+  ANNULEE
+}
+
+enum TypeContrat {
+  CDI
+  CDD
+  VACATION
+  STAGE
+}
+
+// ----------------------------------------------------------------------------
+// Établissement / Structure
+// ----------------------------------------------------------------------------
+
+model Etablissement {
+  id        String   @id @default(uuid())
+  nom       String
+  code      String   @unique
+  adresse   String?
+  ville     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  anneesScolaires AnneeScolaire[]
+  utilisateurs    Utilisateur[]
+  classes         Classe[]
+  salles          Salle[]
+
+  @@map("etablissements")
+}
+
+model AnneeScolaire {
+  id              String   @id @default(uuid())
+  etablissementId String   @map("etablissement_id")
+  libelle         String // ex: "2025-2026"
+  dateDebut       DateTime @map("date_debut")
+  dateFin         DateTime @map("date_fin")
+  active          Boolean  @default(true)
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  classes       Classe[]
+  periodes      Periode[]
+  inscriptions  Inscription[]
+
+  @@unique([etablissementId, libelle])
+  @@map("annees_scolaires")
+}
+
+model Periode {
+  id              String   @id @default(uuid())
+  anneeScolaireId String   @map("annee_scolaire_id")
+  libelle         String // ex: "Trimestre 1"
+  dateDebut       DateTime @map("date_debut")
+  dateFin         DateTime @map("date_fin")
+
+  anneeScolaire AnneeScolaire @relation(fields: [anneeScolaireId], references: [id])
+  notes         Note[]
+
+  @@map("periodes")
+}
+
+// ----------------------------------------------------------------------------
+// Utilisateurs / Identité (Service Auth)
+// ----------------------------------------------------------------------------
+
+model Utilisateur {
+  id                String   @id @default(uuid())
+  etablissementId   String   @map("etablissement_id")
+  email             String   @unique
+  motDePasseHash    String   @map("mot_de_passe_hash")
+  role              Role
+  actif             Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  personnel     Personnel?
+  eleve         Eleve?
+  responsable   Responsable?
+
+  @@index([etablissementId])
+  @@map("utilisateurs")
+}
+
+// ----------------------------------------------------------------------------
+// Personnel / RH
+// ----------------------------------------------------------------------------
+
+model Personnel {
+  id             String   @id @default(uuid())
+  utilisateurId  String   @unique @map("utilisateur_id")
+  nom            String
+  prenom         String
+  fonction       String
+  dateEmbauche   DateTime @map("date_embauche")
+
+  utilisateur   Utilisateur    @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  contrats      Contrat[]
+  bulletinsPaie BulletinPaie[]
+  cours         Cours[]
+
+  @@map("personnel")
+}
+
+model Contrat {
+  id           String       @id @default(uuid())
+  personnelId  String       @map("personnel_id")
+  typeContrat  TypeContrat  @map("type_contrat")
+  dateDebut    DateTime     @map("date_debut")
+  dateFin      DateTime?    @map("date_fin")
+  salaireBrut  Decimal      @map("salaire_brut") @db.Decimal(10, 2)
+
+  personnel Personnel @relation(fields: [personnelId], references: [id])
+
+  @@map("contrats")
+}
+
+model BulletinPaie {
+  id          String              @id @default(uuid())
+  personnelId String              @map("personnel_id")
+  mois        DateTime
+  montantNet  Decimal             @map("montant_net") @db.Decimal(10, 2)
+  statut      StatutBulletinPaie  @default(BROUILLON)
+  fichierUrl  String?             @map("fichier_url")
+
+  personnel Personnel @relation(fields: [personnelId], references: [id])
+
+  @@unique([personnelId, mois])
+  @@map("bulletins_paie")
+}
+
+// ----------------------------------------------------------------------------
+// Élèves / Responsables
+// ----------------------------------------------------------------------------
+
+model Eleve {
+  id            String   @id @default(uuid())
+  utilisateurId String   @unique @map("utilisateur_id")
+  nom           String
+  prenom        String
+  dateNaissance DateTime @map("date_naissance")
+  numeroIne     String   @unique @map("numero_ine")
+
+  utilisateur  Utilisateur          @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  inscriptions Inscription[]
+  absences     Absence[]
+  notes        Note[]
+  sanctions    Sanction[]
+  factures     Facture[]
+  responsables EleveResponsable[]
+
+  @@map("eleves")
+}
+
+model Responsable {
+  id            String  @id @default(uuid())
+  utilisateurId String  @unique @map("utilisateur_id")
+  nom           String
+  prenom        String
+  telephone     String?
+  lienParente   String  @map("lien_parente")
+
+  utilisateur Utilisateur        @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  eleves      EleveResponsable[]
+
+  @@map("responsables")
+}
+
+// Table de jointure explicite pour la relation N-N Eleve <-> Responsable
+model EleveResponsable {
+  eleveId       String @map("eleve_id")
+  responsableId String @map("responsable_id")
+
+  eleve       Eleve       @relation(fields: [eleveId], references: [id])
+  responsable Responsable @relation(fields: [responsableId], references: [id])
+
+  @@id([eleveId, responsableId])
+  @@map("eleves_responsables")
+}
+
+// ----------------------------------------------------------------------------
+// Scolarité : Classes / Inscriptions
+// ----------------------------------------------------------------------------
+
+model Classe {
+  id              String @id @default(uuid())
+  etablissementId String @map("etablissement_id")
+  anneeScolaireId String @map("annee_scolaire_id")
+  nom             String
+  niveau          String
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  anneeScolaire AnneeScolaire @relation(fields: [anneeScolaireId], references: [id])
+  inscriptions  Inscription[]
+  cours         Cours[]
+
+  @@unique([anneeScolaireId, nom])
+  @@map("classes")
+}
+
+model Inscription {
+  id              String            @id @default(uuid())
+  eleveId         String            @map("eleve_id")
+  classeId        String            @map("classe_id")
+  anneeScolaireId String            @map("annee_scolaire_id")
+  dateInscription DateTime          @map("date_inscription")
+  statut          StatutInscription @default(EN_COURS)
+
+  eleve         Eleve         @relation(fields: [eleveId], references: [id])
+  classe        Classe        @relation(fields: [classeId], references: [id])
+  anneeScolaire AnneeScolaire @relation(fields: [anneeScolaireId], references: [id])
+
+  @@unique([eleveId, anneeScolaireId])
+  @@map("inscriptions")
+}
+
+// ----------------------------------------------------------------------------
+// Pédagogie : Matières / Cours / Notes / Absences
+// ----------------------------------------------------------------------------
+
+model Matiere {
+  id      String @id @default(uuid())
+  libelle String
+  code    String @unique
+
+  cours Cours[]
+
+  @@map("matieres")
+}
+
+model Cours {
+  id          String @id @default(uuid())
+  classeId    String @map("classe_id")
+  matiereId   String @map("matiere_id")
+  personnelId String @map("personnel_id")
+
+  classe    Classe      @relation(fields: [classeId], references: [id])
+  matiere   Matiere     @relation(fields: [matiereId], references: [id])
+  personnel Personnel   @relation(fields: [personnelId], references: [id])
+  creneaux  CreneauEdt[]
+  notes     Note[]
+  absences  Absence[]
+
+  @@map("cours")
+}
+
+// Correspond à CREPUS_EDT dans le diagramme (créneau d'emploi du temps)
+model CreneauEdt {
+  id      String   @id @default(uuid())
+  coursId String   @map("cours_id")
+  salleId String   @map("salle_id")
+  debut   DateTime
+  fin     DateTime
+
+  cours Cours @relation(fields: [coursId], references: [id])
+  salle Salle @relation(fields: [salleId], references: [id])
+
+  @@map("creneaux_edt")
+}
+
+model Salle {
+  id              String @id @default(uuid())
+  etablissementId String @map("etablissement_id")
+  nom             String
+  capacite        Int
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  creneaux      CreneauEdt[]
+
+  @@map("salles")
+}
+
+model Note {
+  id             String   @id @default(uuid())
+  eleveId        String   @map("eleve_id")
+  coursId        String   @map("cours_id")
+  periodeId      String   @map("periode_id")
+  valeur         Decimal  @db.Decimal(4, 2)
+  coefficient    Decimal  @default(1) @db.Decimal(4, 2)
+  dateEvaluation DateTime @map("date_evaluation")
+
+  eleve   Eleve   @relation(fields: [eleveId], references: [id])
+  cours   Cours   @relation(fields: [coursId], references: [id])
+  periode Periode @relation(fields: [periodeId], references: [id])
+
+  @@map("notes")
+}
+
+model Absence {
+  id         String   @id @default(uuid())
+  eleveId    String   @map("eleve_id")
+  coursId    String   @map("cours_id")
+  dateDebut  DateTime @map("date_debut")
+  dateFin    DateTime @map("date_fin")
+  motif      String?
+  justifiee  Boolean  @default(false)
+
+  eleve Eleve @relation(fields: [eleveId], references: [id])
+  cours Cours @relation(fields: [coursId], references: [id])
+
+  @@map("absences")
+}
+
+model Sanction {
+  id            String   @id @default(uuid())
+  eleveId       String   @map("eleve_id")
+  type          String
+  motif         String
+  dateSanction  DateTime @map("date_sanction")
+
+  eleve Eleve @relation(fields: [eleveId], references: [id])
+
+  @@map("sanctions")
+}
+
+// ----------------------------------------------------------------------------
+// Comptabilité / Facturation
+// ----------------------------------------------------------------------------
+
+model Facture {
+  id            String        @id @default(uuid())
+  eleveId       String        @map("eleve_id")
+  dateEmission  DateTime      @map("date_emission")
+  montantTotal  Decimal       @map("montant_total") @db.Decimal(10, 2)
+  statut        StatutFacture @default(BROUILLON)
+
+  eleve  Eleve          @relation(fields: [eleveId], references: [id])
+  lignes LigneFacture[]
+
+  @@map("factures")
+}
+
+model LigneFacture {
+  id        String  @id @default(uuid())
+  factureId String  @map("facture_id")
+  libelle   String
+  montant   Decimal @db.Decimal(10, 2)
+
+  facture Facture @relation(fields: [factureId], references: [id], onDelete: Cascade)
+
+  @@map("lignes_facture")
+}

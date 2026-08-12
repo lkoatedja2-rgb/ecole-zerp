@@ -1,0 +1,2 @@
+Module à implémenter en suivant le pattern schemas/service/controller/routes.
+Le modèle de données (CreneauEdt, Salle) existe déjà dans prisma/schema.prisma.
