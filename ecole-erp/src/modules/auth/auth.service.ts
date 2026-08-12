@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import { prisma } from "@/core/prisma";
 import { env } from "@/config/env";
 import { ConflictError, UnauthorizedError } from "@/core/errors";
@@ -41,6 +41,8 @@ export const authService = {
       throw new UnauthorizedError("Identifiants invalides");
     }
 
+    const signOptions: SignOptions = { expiresIn: env.JWT_EXPIRES_IN as SignOptions["expiresIn"] };
+
     const token = jwt.sign(
       {
         sub: utilisateur.id,
@@ -49,7 +51,7 @@ export const authService = {
         email: utilisateur.email,
       },
       env.JWT_SECRET,
-      { expiresIn: env.JWT_EXPIRES_IN }
+      signOptions
     );
 
     return {
