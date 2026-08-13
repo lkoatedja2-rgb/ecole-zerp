@@ -16,6 +16,7 @@ import { bulletinsPaieRouter } from "@/modules/rh/bulletins-paie/bulletins-paie.
 import { facturesRouter } from "@/modules/comptabilite/factures/factures.routes";
 import { sallesRouter } from "@/modules/edt/salles/salles.routes";
 import { creneauxRouter } from "@/modules/edt/creneaux/creneaux.routes";
+import { messagesRouter } from "@/modules/communication/messages/messages.routes";
 
 export const apiRouter = Router();
 
@@ -35,3 +36,4 @@ apiRouter.use("/bulletins-paie", bulletinsPaieRouter);
 apiRouter.use("/factures", facturesRouter);
 apiRouter.use("/salles", sallesRouter);
 apiRouter.use("/creneaux-edt", creneauxRouter);
+apiRouter.use("/messages", messagesRouter);

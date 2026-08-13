@@ -125,6 +125,8 @@ model Utilisateur {
   personnel     Personnel?
   eleve         Eleve?
   responsable   Responsable?
+  messagesEnvoyes Message[] @relation("MessagesEnvoyes")
+  messagesRecus   Message[] @relation("MessagesRecus")
 
   @@index([etablissementId])
   @@map("utilisateurs")
@@ -387,4 +389,23 @@ model LigneFacture {
   facture Facture @relation(fields: [factureId], references: [id], onDelete: Cascade)
 
   @@map("lignes_facture")
+}
+
+// ----------------------------------------------------------------------------
+// Communication
+// ----------------------------------------------------------------------------
+
+model Message {
+  id              String   @id @default(uuid())
+  expediteurId    String   @map("expediteur_id")
+  destinataireId  String   @map("destinataire_id")
+  sujet           String
+  contenu         String
+  dateEnvoi       DateTime @default(now()) @map("date_envoi")
+  lu              Boolean  @default(false)
+
+  expediteur   Utilisateur @relation("MessagesEnvoyes", fields: [expediteurId], references: [id])
+  destinataire Utilisateur @relation("MessagesRecus", fields: [destinataireId], references: [id])
+
+  @@map("messages")
 }
