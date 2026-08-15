@@ -9,3 +9,4 @@ messagesRouter.post("/", messagesController.send);
 messagesRouter.get("/inbox", messagesController.inbox);
 messagesRouter.get("/sent", messagesController.sent);
 messagesRouter.patch("/:id/lu", messagesController.markAsRead);
+messagesRouter.delete("/:id", messagesController.remove);

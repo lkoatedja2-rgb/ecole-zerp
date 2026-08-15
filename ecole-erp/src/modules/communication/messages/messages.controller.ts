@@ -24,4 +24,10 @@ export const messagesController = {
     if (!req.user) throw new UnauthorizedError();
     res.json(await messagesService.markAsRead(req.params.id, req.user.sub));
   },
+
+  async remove(req: Request, res: Response) {
+    if (!req.user) throw new UnauthorizedError();
+    await messagesService.remove(req.params.id, req.user.sub);
+    res.status(204).send();
+  },
 };

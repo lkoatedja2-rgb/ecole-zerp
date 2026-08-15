@@ -33,4 +33,13 @@ export const messagesService = {
     }
     return prisma.message.update({ where: { id }, data: { lu: true } });
   },
+
+  async remove(id: string, userId: string) {
+    const message = await prisma.message.findUnique({ where: { id } });
+    if (!message) throw new NotFoundError("Message");
+    if (message.destinataireId !== userId && message.expediteurId !== userId) {
+      throw new ForbiddenError("Vous ne pouvez supprimer que vos propres messages");
+    }
+    await prisma.message.delete({ where: { id } });
+  },
 };
